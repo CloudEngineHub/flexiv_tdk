@@ -1,6 +1,6 @@
 /**
  * @file transparent_cartesian_teleop_lan.hpp
- * @copyright Copyright (C) 2016-2025 Flexiv Ltd. All Rights Reserved.
+ * @copyright Copyright (C) 2016-2026 Flexiv Ltd. All Rights Reserved.
  */
 #pragma once
 
@@ -107,16 +107,17 @@ public:
     //==================================== TELEOP LIFECYCLE ====================================
     /**
      * @brief [Blocking] Get all robots ready for teleoperation. The following actions will
-     * happen in sequence: a) enable robot if it's servo off, b) zero force/torque sensors, c) stop
-     * the robot and init teleop control params.
+     * happen in sequence: a) enable robot if it's servo off, b) zero force/torque sensors if flag
+     * zero_ft_sensor is enabled, c) stop the robot and initialize teleop control params.
      * @param[in] limit_wrist_singular Whether to limit wrist singularity. If twisted in the wrist
      * singularity zone, it may cause the robot to report error.
+     * @param [in] zero_ft_sensor Whether to calibrate force/torque sensor.
      * @throw std::runtime_error if the initialization sequence failed.
      * @note This function blocks until the initialization sequence is finished.
      * @warning This process involves sensor zeroing, please make sure the robot is not in contact
      * with anything during the process.
      */
-    void Init(bool limit_wrist_singular = true);
+    void Init(bool limit_wrist_singular = true, ZeroFTSensor zero_ft_sensor = ZeroFTSensor::Enable);
 
     /**
      * @brief [Non-Blocking] Start the teleoperation control loop for all robot pairs.
@@ -141,11 +142,13 @@ public:
     /**
      * @brief [Blocking] Get connected robot in specified pair ready for teleoperation. The
      * following actions will happen in sequence: a) enable robot if it's servo off, b) zero
-     * force/torque sensors, c) stop the robot and init teleop control params.
+     * force/torque sensors if flag zero_ft_sensor is enabled, c) stop the robot and initialize
+     * teleop control params.
      * @param[in] idx Index of the robot pair to init. This index is the same as the index
      * of the constructor parameter [robot_pairs_sn].
      * @param[in] limit_wrist_singular Whether to limit wrist singularity. If twisted in the wrist
      * singularity zone, it may cause the robot to report error.
+     * @param [in] zero_ft_sensor Whether to calibrate force/torque sensor.
      * @throw std::runtime_error if the initialization sequence failed.
      * @throw std::invalid_argument if [idx] is outside the valid range.
      * @note This function blocks until the initialization sequence is finished.
@@ -153,7 +156,8 @@ public:
      * with anything during the process.
      * @see Role
      */
-    void InitWithIdx(unsigned int idx, bool limit_wrist_singular = true);
+    void InitWithIdx(unsigned int idx, bool limit_wrist_singular = true,
+        ZeroFTSensor zero_ft_sensor = ZeroFTSensor::Enable);
 
     /**
      * @brief [Non-Blocking] Start the teleoperation control loop for the specified robot pair.
@@ -278,8 +282,8 @@ public:
      * triggered.
      * @param[in] idx Index of the robot pair to set null-space posture for. This index is the same
      * as the index of the constructor parameter [robot_pairs_sn].
-     * @param[in] ref_positions Reference joint positions for the null-space posture control of both
-     * robots in the pair: \f$ q_{ns} \in \mathbb{R}^{n \times 1} \f$. Unit: \f$ [rad] \f$.
+     * @param[in] ref_joint_positions Reference joint positions for the null-space posture control
+     * of both robots in the pair: \f$ q_{ns} \in \mathbb{R}^{n \times 1} \f$. Unit: \f$ [rad] \f$.
      * @throw std::invalid_argument if [idx] exceeds total number of robot pairs.
      * @throw std::invalid_argument if [ref_joint_positions] contains any value outside joint limits
      * or size of input vector does not match robot DoF.
@@ -304,8 +308,8 @@ public:
      * triggered.
      * @param[in] idx Index of the robot pair to set null-space posture for. This index is the same
      * as the index of the constructor parameter [robot_pairs_sn].
-     * @param[in] ref_positions Reference joint positions for the null-space posture control of both
-     * robots in the pair: \f$ q_{ns} \in \mathbb{R}^{n \times 1} \f$. Unit: \f$ [rad] \f$.
+     * @param[in] ref_joint_positions Reference joint positions for the null-space posture control
+     * of both robots in the pair: \f$ q_{ns} \in \mathbb{R}^{n \times 1} \f$. Unit: \f$ [rad] \f$.
      * @throw std::invalid_argument if [idx] exceeds total number of robot pairs.
      * @throw std::invalid_argument if [ref_joint_positions] contains any value outside joint limits
      * or size of input vector does not match robot DoF.

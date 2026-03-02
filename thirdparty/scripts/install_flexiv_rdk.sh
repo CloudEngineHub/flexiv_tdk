@@ -3,7 +3,7 @@ set -e
 echo "Installing flexiv_rdk"
 
 # Use a specific version
-GIT_TAG=v1.8
+GIT_TAG=v1.9
 
 # Get install directory and number of parallel build jobs as script arguments
 INSTALL_DIR=$1
@@ -20,16 +20,31 @@ fi
 # Save path to flexiv_rdk root
 ROOT_DIR=$(pwd)
 
-# Build and install nested dependencies
+# Build and install flexiv_rdk's dependencies
 cd thirdparty
-bash build_and_install_dependencies.sh $INSTALL_DIR $NUM_JOBS
+if [ -n "$BUILD_FOR_JAZZY" ] ; then
+  source /opt/ros/jazzy/setup.bash
+  bash build_and_install_dependencies_not_in_ros2.sh $INSTALL_DIR $NUM_JOBS
+else
+  bash build_and_install_dependencies.sh $INSTALL_DIR $NUM_JOBS
+fi
 
 # Configure CMake
 cd $ROOT_DIR
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-         -DCMAKE_PREFIX_PATH=$INSTALL_DIR \
-         -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
+rm -rf build && mkdir build && cd build
+
+# Configure CMake for Jazzy if requested
+if [ -n "$BUILD_FOR_JAZZY" ] ; then
+  cmake .. -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH=$INSTALL_DIR \
+          -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
+          -DRDK_SUPPORT_ROS2_JAZZY=ON
+else
+  cmake .. -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH=$INSTALL_DIR \
+          -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
+          -DRDK_SUPPORT_ROS2_JAZZY=OFF
+fi
 
 # Build and install
 cmake --build . --target install --config Release -j $NUM_JOBS

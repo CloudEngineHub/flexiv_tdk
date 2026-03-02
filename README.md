@@ -1,7 +1,7 @@
 # Flexiv TDK
 
 [![CMake](https://github.com/flexivrobotics/flexiv_tdk/actions/workflows/cmake.yml/badge.svg)](https://github.com/flexivrobotics/flexiv_tdk/actions/workflows/cmake.yml)
-[![Version](https://img.shields.io/badge/version-1.5-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-1.6-blue.svg)]()
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
 **Flexiv TDK (Teleoperation Development Kit)** is an SDK for building custom robot-to-robot or device-to-robot teleoperation applications with Flexiv's adaptive robots. It enables synchronized, force-guided motion using **high-fidelity perceptual feedback** and supports both **LAN** (Local Area Network) and **WAN** (Internet) connections.
@@ -218,8 +218,9 @@ NOTE: ``-D`` followed by ``CMAKE_INSTALL_PREFIX`` tells the user project's CMake
 ### 6. Run Examples
 ```bash
 cd flexiv_tdk/example/build
-./<program_name> [arguments]
+LD_LIBRARY_PATH=~/tdk_install/lib ./<program_name> [arguments]
 ```
+``LD_LIBRARY_PATH`` is used to specify where the shared libraries of the dependencies are installed.
 
 Check each example’s source code for usage details.
 

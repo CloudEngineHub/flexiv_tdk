@@ -1,6 +1,6 @@
 /**
  * @file transparent_cartesian_teleop_wan.hpp
- * @copyright Copyright (C) 2016-2025 Flexiv Ltd. All Rights Reserved.
+ * @copyright Copyright (C) 2016-2026 Flexiv Ltd. All Rights Reserved.
  */
 #pragma once
 
@@ -61,35 +61,33 @@ public:
 
     //========================================= ACCESSORS ==========================================
     /**
-     * @brief [Non-blocking] Check the TCP connection status and retrieve the average message
-     * latency.
+     * @brief Non-blocking check of TCP connection status and average message latency.
      *
-     * This function estimates the average TCP message latency (in milliseconds) using an internal
-     * sliding-window filter to suppress occasional spikes. The result is returned through the
-     * output parameter [latency_ms].
+     * Estimates the average TCP message latency (in milliseconds) using an internal
+     * sliding-window filter to suppress transient spikes. The computed value is
+     * returned via [latency_ms].
      *
-     * The return value and latency interpretation are as follows:
-     * - **Case 1:** `latency_ms` is a very large positive number → Connection not yet established.
-     *   Returns **false**.
-     * - **Case 2:** `latency_ms` is within [0, threshold_ms] milliseconds → Connection established.
-     *   Returns **true**. The default threshold is 200 milliseconds, but can be adjusted using
-     *   SetTeleopLatencyLimit().
-     * - **Case 3:** `latency_ms` is negative → The system clocks of the two computers are not
-     *   properly synchronized.
-     *   Returns **false**. In this case, ensure both computers run the `chrony` service to
-     *   synchronize their system time.
+     * Interpretation of return value and latency:
+     * - **Not connected:** [latency_ms] is a very large positive value. Returns false.
+     * - **Connected:** [latency_ms] ∈ [0, threshold_ms]. Returns true.
+     *   The default threshold is 200 ms and can be modified via SetTeleopLatencyLimit().
+     * - **Clock mismatch:** [latency_ms] is negative. Returns false.
+     *   Ensure both computers synchronize system time (e.g., using chrony).
      *
-     * @param[in] idx Index of the robot pair. This corresponds to the index of the constructor
-     * parameter [robot_pairs_sn].
-     * @param[out] latency_ms Average TCP message latency in milliseconds.
-     * @return True if a valid connection is established and the average latency is within the
-     * acceptable range [0, threshold_ms] ms. False otherwise.
-     * @throw std::invalid_argument if [idx] is out of range.
+     * @param[in]  idx         Index of the robot pair corresponding to [robot_pairs_sn].
+     * @param[out] latency_ms  Estimated average TCP message latency in milliseconds.
+     *
+     * @return True if the connection is established and latency is within
+     *         [0, threshold_ms]; otherwise false.
+     *
+     * @throw std::invalid_argument If [idx] is out of range.
+     *
      * @warning
-     * - If [latency_ms] > 200 ms, the connection quality is poor and may cause delayed feedback or
-     *   command responses.
-     * - If [latency_ms] > threshold_ms ms, teleoperation will be disengaged, and follower robots
-     * will hold their pose until incoming message latency is in valid range.
+     * - Latency > 200 ms indicates poor connection quality and may cause delayed feedback
+     *   or command execution.
+     * - If latency exceeds threshold_ms, teleoperation is disengaged and follower robots
+     *   hold their pose until latency returns to a valid range.
+     *
      * @see SetTeleopLatencyLimit()
      */
     bool CheckTeleopConnectionLatency(unsigned int idx, double& latency_ms) const;
@@ -144,13 +142,14 @@ public:
      * the robot and init teleop control params.
      * @param[in] limit_wrist_singular Whether to limit wrist singularity. If twisted towards the
      * wrist singularity zone, it may cause the robot to report error.
+     * @param [in] zero_ft_sensor Whether to calibrate force/torque sensor.
      * @throw std::runtime_error if the initialization sequence failed.
      * @note This function blocks until the initialization sequence is finished.
      * @warning This process involves sensor zeroing, please make sure the robot is not in contact
      * with anything during the process.
      * @see Role
      */
-    void Init(bool limit_wrist_singular = true);
+    void Init(bool limit_wrist_singular = true, ZeroFTSensor zero_ft_sensor = ZeroFTSensor::Enable);
 
     /**
      * @brief [Non-Blocking] Start the teleoperation control loop for current roles (leaders or
@@ -182,13 +181,15 @@ public:
      * of the constructor parameter [robot_pairs_sn].
      * @param[in] limit_wrist_singular Whether to limit wrist singularity. If twisted towards the
      * wrist singularity zone, it may cause the robot to report error.
+     * @param [in] zero_ft_sensor Whether to calibrate force/torque sensor.
      * @throw std::runtime_error if the initialization sequence failed.
      * @note This function blocks until the initialization sequence is finished.
      * @warning This process involves sensor zeroing, please make sure the robot is not in contact
      * with anything during the process.
      * @see Role
      */
-    void InitWithIdx(unsigned int idx, bool limit_wrist_singular = true);
+    void InitWithIdx(unsigned int idx, bool limit_wrist_singular = true,
+        ZeroFTSensor zero_ft_sensor = ZeroFTSensor::Enable);
 
     /**
      * @brief [Non-Blocking] Start the teleoperation control loop for the specified robot pair.
@@ -240,8 +241,8 @@ public:
      * control module for the current role in the robot pairs.
      * @param[in] idx Index of the robot pair to set null-space posture for current role. This index
      * is the same as the index of the constructor parameter [robot_pairs_sn].
-     * @param[in] ref_positions Reference joint positions for the null-space posture control of
-     * specified robot in the pair: \f$ q_{ns} \in \mathbb{R}^{n \times 1} \f$. Unit: \f$ [rad]
+     * @param[in] ref_joint_positions Reference joint positions for the null-space posture control
+     * of specified robot in the pair: \f$ q_{ns} \in \mathbb{R}^{n \times 1} \f$. Unit: \f$ [rad]
      * \f$.
      * @throw std::invalid_argument if [ref_joint_positions] contains any value outside joint limits
      * or size of input vector does not match robot DoF.
@@ -292,6 +293,39 @@ public:
      * @see CheckTeleopConnectionLatency()
      */
     void SetTeleopLatencyLimit(unsigned int idx, double threshold_ms = 200.0);
+
+    /**
+     * @brief [Non-blocking] Set the leader robot axis locking command.
+     * @param[in] idx Index of the robot pair to set commands for. This index is the same as the
+     * index of the constructor parameter [robot_pairs_sn].
+     * @throw std::invalid_argument if [idx] is outside the valid range.
+     * @throw std::logic_error if this teleop instance is not initialized as leader robot.
+     * @param[in] cmd User input command to lock the motion of the specified axis in the reference
+     * coordinate.
+     */
+    void SetAxisLockCmd(unsigned int idx, const AxisLock& cmd);
+
+    /**
+     * @brief [Non-blocking] Get the leader robot axis locking status
+     * @param[in] idx Index of the robot pair to get state for. This index is the same as the
+     * index of the constructor parameter [robot_pairs_sn].
+     * @throw std::invalid_argument if [idx] is outside the valid range.
+     * @throw std::logic_error if this teleop instance is not initialized as leader robot.
+     * @param[out] data Current axis locking state of leader robot.
+     */
+    void GetAxisLockState(unsigned int idx, AxisLock& data);
+
+    /**
+     * @brief [Non-blocking] Get the leader robot axis locking status
+     * @param[in] idx Index of the robot pair to get states for. This index is the same as the
+     * index of the constructor parameter [robot_pairs_sn].
+     * @throw std::invalid_argument if [idx] is outside the valid range.
+     * @throw std::logic_error if this teleop instance is not initialized as leader robot.
+     * @warning This fuction is less efficient than the other overloaded one as additional runtime
+     * memory allocation and data copying are performed.
+     * @return AxisLock
+     */
+    AxisLock GetAxisLockState(unsigned int idx);
 
     //======================================= SYSTEM CONTROL =======================================
     /**
