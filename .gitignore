@@ -2,8 +2,8 @@ bin/
 build*/
 install/
 config.h
-doc/html
-html/
+site/
+docs/api/doxygen/
 .vscode
 *.pyc
 release/
